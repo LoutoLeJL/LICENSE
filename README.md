@@ -1,2 +1,2 @@
 # LICENSE
-LICENSE of Obsidian Overhaul 
+All Rights Reserved
