@@ -91,9 +91,12 @@
         <div class="badge timer" id="timer">2:00</div>
       </div>
 
+      <!-- Profils : toi + les autres joueurs, avec statut de validation -->
+      <div id="players-hud" class="players-hud"></div>
+
       <!-- Boîte de supposition (minimap + bouton) -->
-      <div id="guess-box" class="guess-box collapsed">
-        <button id="btn-toggle-map" class="map-toggle">🗺️</button>
+      <div id="guess-box" class="guess-box">
+        <button id="btn-toggle-map" class="map-toggle" title="Agrandir la carte">🔍</button>
         <div id="guess-map" class="guess-map"></div>
         <button id="btn-guess" class="primary guess-btn" disabled>
           Placez un marqueur

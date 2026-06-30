@@ -15,6 +15,7 @@
     round: 0,
     totalRounds: 5,
     submitted: false,
+    submittedIds: new Set(),
     panoReady: false,
     timerInterval: null,
     // Couleur attribuée à chaque joueur (ordre d'arrivée) pour les cartes.
@@ -54,8 +55,10 @@
       startRoundUI(data);
     });
 
-    Net.on("round:progress", ({ submitted, total }) => {
+    Net.on("round:progress", ({ submitted, total, submittedIds }) => {
       $("waiting-text").textContent = `En attente des autres joueurs… (${submitted}/${total})`;
+      state.submittedIds = new Set(submittedIds || []);
+      renderPlayersHud();
     });
 
     Net.on("round:result", (data) => {
@@ -177,6 +180,26 @@
       .join("");
   }
 
+  /** Encart "profils" affiché pendant la manche : toi + les autres joueurs,
+   *  avec une coche dès qu'un joueur a validé sa supposition. */
+  function renderPlayersHud() {
+    $("players-hud").innerHTML = state.players
+      .map((p) => {
+        const color = colorFor(state.colorIndex[p.id] ?? 0);
+        const initial = (p.name || "?").trim().charAt(0).toUpperCase();
+        const isYou = p.id === state.youId;
+        const done = state.submittedIds.has(p.id);
+        return (
+          `<div class="player-row${isYou ? " you" : ""}">` +
+          `<span class="avatar" style="background:${color}">${escapeHtml(initial)}</span>` +
+          `<span class="pname">${escapeHtml(p.name)}${isYou ? " (toi)" : ""}</span>` +
+          (done ? '<span class="check">✓</span>' : "") +
+          `</div>`
+        );
+      })
+      .join("");
+  }
+
   /* ====================================================================
    *  DÉROULEMENT D'UNE MANCHE
    * ==================================================================== */
@@ -184,10 +207,12 @@
     state.round = data.round;
     state.totalRounds = data.totalRounds;
     state.submitted = false;
+    state.submittedIds = new Set();
 
     $("round-indicator").textContent = `Manche ${data.round}/${data.totalRounds}`;
     $("waiting-overlay").classList.add("hidden");
     $("guess-box").classList.remove("expanded");
+    renderPlayersHud();
 
     const guessBtn = $("btn-guess");
     guessBtn.disabled = true;

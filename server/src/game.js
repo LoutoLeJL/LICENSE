@@ -76,8 +76,9 @@ function recordGuess(io, room, socketId, guess) {
 
   room.roundGuesses[socketId] = { lat: guess.lat, lng: guess.lng };
 
-  // Informe la salle de la progression (X / Y joueurs ont validé).
+  // Informe la salle de la progression (qui a validé, X / Y joueurs).
   io.to(room.code).emit('round:progress', {
+    submittedIds: Object.keys(room.roundGuesses),
     submitted: Object.keys(room.roundGuesses).length,
     total: Object.keys(room.players).length,
   });
