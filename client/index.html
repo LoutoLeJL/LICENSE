@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GeoGuessr Clone — Multijoueur</title>
+
+    <!-- Leaflet (carte OpenStreetMap, 100 % gratuit) -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- ============================ ACCUEIL ============================ -->
+    <section id="screen-home" class="screen active">
+      <div class="card">
+        <h1>🌍 GeoGuessr <span class="accent">Clone</span></h1>
+        <p class="subtitle">Devine où tu te trouves. Entre amis, en temps réel.</p>
+
+        <label class="field">
+          <span>Ton pseudo</span>
+          <input id="input-name" type="text" maxlength="20" placeholder="Ex: Alex" />
+        </label>
+
+        <div class="actions">
+          <button id="btn-create" class="primary">Créer une salle</button>
+        </div>
+
+        <div class="divider"><span>ou</span></div>
+
+        <div class="join-row">
+          <input
+            id="input-code"
+            type="text"
+            maxlength="4"
+            placeholder="CODE"
+            class="code-input"
+          />
+          <button id="btn-join" class="secondary">Rejoindre</button>
+        </div>
+
+        <p id="home-error" class="error-msg"></p>
+      </div>
+    </section>
+
+    <!-- ============================= LOBBY ============================= -->
+    <section id="screen-lobby" class="screen">
+      <div class="card">
+        <h2>Salle d'attente</h2>
+        <div class="room-code">
+          Code : <strong id="lobby-code">----</strong>
+          <button id="btn-copy" class="link-btn" title="Copier">📋</button>
+        </div>
+
+        <h3>Joueurs</h3>
+        <ul id="player-list" class="player-list"></ul>
+
+        <div id="host-settings" class="settings hidden">
+          <h3>Paramètres</h3>
+          <label class="field-inline">
+            <span>Manches</span>
+            <input id="set-rounds" type="number" min="1" max="10" value="5" />
+          </label>
+          <label class="field-inline">
+            <span>Temps / manche (s)</span>
+            <input id="set-time" type="number" min="30" max="600" step="10" value="120" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="btn-start" class="primary hidden">Lancer la partie</button>
+          <p id="waiting-host" class="hint">En attente du lancement par l'hôte…</p>
+          <button id="btn-leave-lobby" class="link-btn">Quitter</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================= JEU =============================== -->
+    <section id="screen-game" class="screen">
+      <!-- Vue panoramique plein écran -->
+      <div id="pano" class="pano"></div>
+
+      <!-- HUD haut : manche + chrono -->
+      <div class="hud-top">
+        <div class="badge" id="round-indicator">Manche 1/5</div>
+        <div class="badge timer" id="timer">2:00</div>
+      </div>
+
+      <!-- Boîte de supposition (minimap + bouton) -->
+      <div id="guess-box" class="guess-box collapsed">
+        <button id="btn-toggle-map" class="map-toggle">🗺️</button>
+        <div id="guess-map" class="guess-map"></div>
+        <button id="btn-guess" class="primary guess-btn" disabled>
+          Placez un marqueur
+        </button>
+      </div>
+
+      <!-- Bandeau d'attente après validation -->
+      <div id="waiting-overlay" class="waiting-overlay hidden">
+        <div class="spinner"></div>
+        <p id="waiting-text">En attente des autres joueurs…</p>
+      </div>
+    </section>
+
+    <!-- ====================== RÉSULTATS DE MANCHE ====================== -->
+    <section id="screen-result" class="screen">
+      <div class="result-layout">
+        <div id="result-map" class="result-map"></div>
+        <div class="result-panel">
+          <h2 id="result-title">Résultats — Manche 1</h2>
+          <p class="reveal" id="result-location"></p>
+          <ul id="result-list" class="result-list"></ul>
+          <button id="btn-next" class="primary hidden">Manche suivante</button>
+          <p id="waiting-next" class="hint">En attente de l'hôte…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================= FIN DE PARTIE ========================= -->
+    <section id="screen-over" class="screen">
+      <div class="card">
+        <h2>🏆 Classement final</h2>
+        <ul id="final-list" class="final-list"></ul>
+        <div class="actions">
+          <button id="btn-again" class="primary hidden">Rejouer</button>
+          <p id="waiting-again" class="hint">En attente de l'hôte…</p>
+          <button id="btn-leave-over" class="link-btn">Quitter</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dépendances externes -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <!-- Config (doit être chargée avant nos modules) -->
+    <script src="config.js"></script>
+
+    <!-- Modules de l'application -->
+    <script src="js/util.js"></script>
+    <script src="js/net.js"></script>
+    <script src="js/panorama.js"></script>
+    <script src="js/minimap.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

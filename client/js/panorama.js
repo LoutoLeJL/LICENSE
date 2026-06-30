@@ -1,0 +1,151 @@
+/**
+ * Gestion de la vue panoramique 360°.
+ *
+ * Deux fournisseurs possibles (choisis dans config.js) :
+ *   - 'google'    : Google Street View (recommandé, crédit gratuit 200$/mois).
+ *   - 'mapillary' : alternative 100 % gratuite (couverture variable).
+ *
+ * Interface commune :
+ *   Panorama.init(containerEl)    -> Promise   (charge le SDK une fois)
+ *   Panorama.show({lat, lng})     -> Promise<boolean>  (true si une vue existe)
+ */
+window.Panorama = (function () {
+  const cfg = window.APP_CONFIG;
+  const provider = cfg.PANORAMA_PROVIDER === "mapillary" ? "mapillary" : "google";
+
+  /* =========================== GOOGLE ============================== */
+  const Google = (function () {
+    let pano = null;
+    let svService = null;
+
+    function loadSdk() {
+      return new Promise((resolve, reject) => {
+        if (window.google && window.google.maps) return resolve();
+        const cbName = "__gmapsInit";
+        window[cbName] = () => resolve();
+        const s = document.createElement("script");
+        s.src =
+          "https://maps.googleapis.com/maps/api/js?key=" +
+          encodeURIComponent(cfg.GOOGLE_MAPS_API_KEY) +
+          "&callback=" +
+          cbName;
+        s.async = true;
+        s.defer = true;
+        s.onerror = () => reject(new Error("Échec du chargement de Google Maps"));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function init(container) {
+      await loadSdk();
+      svService = new google.maps.StreetViewService();
+      pano = new google.maps.StreetViewPanorama(container, {
+        visible: false,
+        addressControl: false, // masque le nom de rue/lieu (anti-triche basique)
+        showRoadLabels: false,
+        fullscreenControl: false,
+        motionTracking: false,
+        motionTrackingControl: false,
+        linksControl: cfg.ALLOW_MOVE,
+        clickToGo: cfg.ALLOW_MOVE,
+        panControl: true,
+        zoomControl: true,
+        enableCloseButton: false,
+      });
+    }
+
+    function findAndShow(request) {
+      return new Promise((resolve) => {
+        svService.getPanorama(request, (data, status) => {
+          if (status === google.maps.StreetViewStatus.OK) {
+            pano.setPano(data.location.pano);
+            pano.setPov({ heading: Math.random() * 360, pitch: 0 });
+            pano.setZoom(0);
+            pano.setVisible(true);
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        });
+      });
+    }
+
+    async function show(location) {
+      // 1) On cherche d'abord une vue extérieure proche.
+      const ok = await findAndShow({
+        location,
+        radius: 200,
+        source: google.maps.StreetViewSource.OUTDOOR,
+      });
+      if (ok) return true;
+      // 2) Repli : on élargit le rayon, sans restriction de source.
+      return findAndShow({ location, radius: 2000 });
+    }
+
+    return { init, show };
+  })();
+
+  /* ========================== MAPILLARY ============================ */
+  const Mapillary = (function () {
+    let viewer = null;
+
+    function loadSdk() {
+      return new Promise((resolve, reject) => {
+        if (window.mapillary) return resolve();
+        const css = document.createElement("link");
+        css.rel = "stylesheet";
+        css.href = "https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.css";
+        document.head.appendChild(css);
+
+        const s = document.createElement("script");
+        s.src = "https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.js";
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Échec du chargement de Mapillary"));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function init(container) {
+      await loadSdk();
+      viewer = new mapillary.Viewer({
+        accessToken: cfg.MAPILLARY_TOKEN,
+        container,
+        component: { cover: false },
+      });
+    }
+
+    // Cherche l'image Mapillary la plus proche via la Graph API, puis l'affiche.
+    async function show(location) {
+      const d = 0.02; // ~2 km de demi-côté pour la bbox
+      const bbox = [
+        location.lng - d,
+        location.lat - d,
+        location.lng + d,
+        location.lat + d,
+      ].join(",");
+      const url =
+        "https://graph.mapillary.com/images?access_token=" +
+        encodeURIComponent(cfg.MAPILLARY_TOKEN) +
+        "&fields=id&bbox=" +
+        bbox +
+        "&limit=1";
+
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        const img = json && json.data && json.data[0];
+        if (!img) return false;
+        await viewer.moveTo(img.id);
+        return true;
+      } catch (e) {
+        console.error("Mapillary:", e);
+        return false;
+      }
+    }
+
+    return { init, show };
+  })();
+
+  const impl = provider === "mapillary" ? Mapillary : Google;
+  return { init: impl.init, show: impl.show, provider };
+})();

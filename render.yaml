@@ -1,0 +1,15 @@
+# Blueprint Render (déploiement "tout-en-un" gratuit).
+# Le serveur Node sert à la fois l'API Socket.io ET le frontend statique.
+# Voir le README, section "Déploiement gratuit".
+services:
+  - type: web
+    name: geoguessr-clone
+    runtime: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: CLIENT_ORIGIN
+        value: "*"
+      - key: NODE_VERSION
+        value: "20"
