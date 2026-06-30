@@ -64,6 +64,11 @@ window.Panorama = (function () {
             pano.setVisible(true);
             resolve(true);
           } else {
+            // ZERO_RESULTS = pas d'image à cet endroit (normal, on élargit).
+            // UNKNOWN_ERROR / OVER_QUERY_LIMIT = problème de clé/quota, utile à logger.
+            if (status !== google.maps.StreetViewStatus.ZERO_RESULTS) {
+              console.warn("Street View getPanorama() :", status, request);
+            }
             resolve(false);
           }
         });
@@ -71,15 +76,18 @@ window.Panorama = (function () {
     }
 
     async function show(location) {
-      // 1) On cherche d'abord une vue extérieure proche.
-      const ok = await findAndShow({
-        location,
-        radius: 200,
-        source: google.maps.StreetViewSource.OUTDOOR,
-      });
-      if (ok) return true;
-      // 2) Repli : on élargit le rayon, sans restriction de source.
-      return findAndShow({ location, radius: 2000 });
+      // On élargit progressivement la recherche : un lieu connu finit presque
+      // toujours par trouver une image dans un des paliers ci-dessous.
+      const attempts = [
+        { location, radius: 200, source: google.maps.StreetViewSource.OUTDOOR },
+        { location, radius: 5000, source: google.maps.StreetViewSource.OUTDOOR },
+        { location, radius: 50000 }, // dernier recours, toutes sources
+      ];
+      for (const request of attempts) {
+        if (await findAndShow(request)) return true;
+      }
+      console.warn("Aucune vue Street View trouvée près de", location, "après tous les paliers.");
+      return false;
     }
 
     return { init, show };

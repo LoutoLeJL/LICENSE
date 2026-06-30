@@ -211,6 +211,7 @@
 
     $("round-indicator").textContent = `Manche ${data.round}/${data.totalRounds}`;
     $("waiting-overlay").classList.add("hidden");
+    $("pano-error").classList.add("hidden");
     $("guess-box").classList.remove("expanded");
     renderPlayersHud();
 
@@ -244,9 +245,7 @@
     // Affiche la vue du lieu de cette manche.
     if (state.panoReady) {
       const ok = await Panorama.show({ lat: data.location.lat, lng: data.location.lng });
-      if (!ok) {
-        console.warn("Aucune vue panoramique trouvée pour ce lieu.");
-      }
+      $("pano-error").classList.toggle("hidden", ok);
     }
 
     startTimer(data.endsAt);

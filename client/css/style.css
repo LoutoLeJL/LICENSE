@@ -250,6 +250,19 @@ button:disabled {
   inset: 0;
   background: #000;
 }
+.pano-error {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  pointer-events: none;
+}
 .hud-top {
   position: absolute;
   top: 16px;
