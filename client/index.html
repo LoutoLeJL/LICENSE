@@ -22,6 +22,29 @@
         <h1>🌍 GeoGuessr <span class="accent">Clone</span></h1>
         <p class="subtitle">Devine où tu te trouves. Entre amis, en temps réel.</p>
 
+        <!-- Comptes joueurs (Google) : masqué tant que ENABLE_ACCOUNTS est false -->
+        <div id="account-bar" class="account-bar hidden">
+          <button id="btn-google-signin" class="google-btn hidden">
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.8 2.73v2.27h2.91c1.7-1.57 2.69-3.88 2.69-6.64z" />
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.27c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.34A9 9 0 0 0 9 18z" />
+              <path fill="#FBBC05" d="M3.96 10.7A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.17.28-1.7V4.96H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.04l3-2.34z" />
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.96l3 2.34C4.67 5.16 6.66 3.58 9 3.58z" />
+            </svg>
+            <span>Se connecter avec Google</span>
+          </button>
+          <div id="account-profile" class="account-profile hidden">
+            <img id="account-avatar" class="account-avatar" alt="" />
+            <span id="account-name"></span>
+            <button id="btn-stats-toggle" class="link-btn" title="Mes statistiques">📊</button>
+            <button id="btn-signout" class="link-btn" title="Se déconnecter">↩️</button>
+          </div>
+        </div>
+        <div id="stats-panel" class="stats-panel hidden">
+          <h3>Mes statistiques</h3>
+          <ul id="stats-list" class="stats-list"></ul>
+        </div>
+
         <label class="field">
           <span>Ton pseudo</span>
           <input id="input-name" type="text" maxlength="20" placeholder="Ex: Alex" />
@@ -70,7 +93,37 @@
             <span>Temps / manche (s)</span>
             <input id="set-time" type="number" min="30" max="600" step="10" value="120" />
           </label>
+          <label class="field-inline">
+            <span>Supposition</span>
+            <select id="set-guess-type">
+              <option value="precise">Précise (carte)</option>
+              <option value="country">Pays uniquement</option>
+            </select>
+          </label>
+          <label class="field-inline">
+            <span>Déplacement</span>
+            <select id="set-movement">
+              <option value="free">Libre</option>
+              <option value="nmpz">Sans déplacement (NMPZ)</option>
+            </select>
+          </label>
+          <label class="field-inline">
+            <span>Zone</span>
+            <select id="set-region">
+              <option value="world">Monde entier</option>
+              <option value="europe">Europe</option>
+              <option value="france">France uniquement</option>
+            </select>
+          </label>
+          <label class="field-inline checkbox-inline">
+            <span>🔥 Battle Royale</span>
+            <input id="set-elimination" type="checkbox" />
+          </label>
+          <p class="hint">En Battle Royale, le moins précis est éliminé à chaque manche.</p>
         </div>
+
+        <!-- Résumé des réglages, visible par les non-hôtes -->
+        <div id="mode-summary" class="mode-summary hidden"></div>
 
         <div class="actions">
           <button id="btn-start" class="primary hidden">Lancer la partie</button>
@@ -149,6 +202,17 @@
       crossorigin=""
     ></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script
+      src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"
+      integrity="sha256-Jc0CrkhsxQY+AhWk5M+xXeg3AMh6xIusTVfcaq8+u4k="
+      crossorigin=""
+    ></script>
+    <!-- Firebase (comptes joueurs, 100% optionnel — voir le README).
+         Pas de hash d'intégrité ici : ce CDN (gstatic.com) sert un build
+         propre à Firebase, pas un simple miroir du paquet npm publié. -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
     <!-- Config (doit être chargée avant nos modules) -->
     <script src="config.js"></script>
@@ -156,6 +220,7 @@
     <!-- Modules de l'application -->
     <script src="js/util.js"></script>
     <script src="js/net.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/panorama.js"></script>
     <script src="js/minimap.js"></script>
     <script src="js/app.js"></script>

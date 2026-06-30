@@ -9,12 +9,18 @@
  *   code: 'ABCD',
  *   hostId: <socketId>,
  *   state: 'lobby' | 'playing' | 'roundResult' | 'gameover',
- *   settings: { rounds, roundTime },
- *   players: { [socketId]: { id, name, score, connected } },
- *   locations: [ {lat,lng,name}, ... ],
+ *   settings: {
+ *     rounds, roundTime,
+ *     guessType: 'precise' | 'country',   // type de supposition
+ *     movement: 'free' | 'nmpz',          // déplacement dans la vue 360°
+ *     region: 'world' | 'europe' | 'france', // zone des lieux tirés
+ *     elimination: boolean,               // mode Battle Royale
+ *   },
+ *   players: { [socketId]: { id, name, score, connected, eliminated } },
+ *   locations: [ {lat,lng,name,countryId,...}, ... ],
  *   currentRound: 0,
  *   currentLocation: {lat,lng,name} | null,
- *   roundGuesses: { [socketId]: {lat,lng} },
+ *   roundGuesses: { [socketId]: {lat,lng} | {countryId} },
  *   roundEndsAt: <timestamp ms> | null,
  *   timer: <NodeJS.Timeout> | null,
  * }
@@ -25,7 +31,14 @@ const rooms = new Map();
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans I, O, 0, 1 (ambigus)
 const CODE_LENGTH = 4;
 
-const DEFAULT_SETTINGS = { rounds: 5, roundTime: 120 };
+const DEFAULT_SETTINGS = {
+  rounds: 5,
+  roundTime: 120,
+  guessType: 'precise',
+  movement: 'free',
+  region: 'world',
+  elimination: false,
+};
 
 function generateCode() {
   let code;
@@ -59,7 +72,7 @@ function createRoom(hostId, hostName) {
 }
 
 function makePlayer(id, name) {
-  return { id, name: sanitizeName(name), score: 0, connected: true };
+  return { id, name: sanitizeName(name), score: 0, connected: true, eliminated: false };
 }
 
 function sanitizeName(name) {
@@ -92,6 +105,7 @@ function publicPlayers(room) {
     score: p.score,
     connected: p.connected,
     isHost: p.id === room.hostId,
+    eliminated: p.eliminated,
   }));
 }
 

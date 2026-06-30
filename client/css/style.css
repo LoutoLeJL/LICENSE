@@ -118,6 +118,39 @@ input:focus {
   width: 90px;
   text-align: center;
 }
+.field-inline select {
+  width: 170px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.field-inline.checkbox-inline input {
+  width: auto;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.mode-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0;
+}
+.mode-summary .chip {
+  background: var(--panel-2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.mode-summary .chip.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 
 /* ---------------------------- Boutons ------------------------------ */
 button {
@@ -161,6 +194,73 @@ button:disabled {
   flex-direction: column;
   gap: 10px;
   align-items: center;
+}
+
+/* ------------------------- Comptes joueurs -------------------------- */
+.account-bar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.google-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.google-btn:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.account-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  border-radius: 999px;
+  padding: 6px 10px 6px 6px;
+}
+.account-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--panel);
+}
+.account-profile span {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.stats-panel {
+  background: var(--panel-2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.stats-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+.stats-list li {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+}
+.stats-list li b {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .divider {
@@ -385,6 +485,22 @@ button:disabled {
   margin-left: auto;
   color: var(--good);
   font-weight: 800;
+}
+.players-hud .check.elim {
+  color: var(--danger);
+}
+.players-hud .player-row.eliminated {
+  opacity: 0.5;
+}
+.players-hud .player-row.eliminated .pname {
+  text-decoration: line-through;
+}
+
+.elim-badge {
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-left: 4px;
 }
 
 .waiting-overlay {

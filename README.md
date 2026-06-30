@@ -8,7 +8,9 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
 - **Vue 360° :** Google Street View (crédit gratuit de 200 $/mois) ou
   [Mapillary](https://www.mapillary.com/) en alternative 100 % gratuite.
 - **Temps réel :** Node.js + [Socket.io](https://socket.io/).
-- **Stockage :** en mémoire (rooms volatiles) — rien à payer, rien à gérer.
+- **Stockage de partie :** en mémoire (rooms volatiles) — rien à payer.
+- **Comptes joueurs (optionnel) :** connexion Google + stats persos via
+  [Firebase](https://firebase.google.com/) (plan Spark, gratuit).
 
 ---
 
@@ -26,6 +28,17 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
   exponentielle (0 à 5000 points).
 - 🏆 **Classement final** avec mise en avant du gagnant.
 - 🔁 **Rejouer** sans recréer de salle.
+- 🎛️ **4 réglages de mode combinables** (l'hôte les choisit dans le lobby) :
+  - **Supposition précise / Pays uniquement** : en mode Pays, on clique le
+    pays sur la carte au lieu de placer un point (score 5000/0, plus rapide).
+  - **Déplacement libre / NMPZ** : verrouille le déplacement dans la vue 360°
+    pour une difficulté façon "No Move, Pan, Zoom".
+  - **Zone géographique** : Monde entier, Europe, ou France uniquement.
+  - **🔥 Battle Royale** : le joueur le moins précis est éliminé à chaque
+    manche, jusqu'à ce qu'il n'en reste qu'un.
+- 👤 **Comptes joueurs (optionnel)** : connexion avec Google, profil + stats
+  persos (parties jouées, meilleur score, précision moyenne) sauvegardées
+  entre les sessions. Le jeu reste 100 % jouable sans compte.
 
 ---
 
@@ -41,17 +54,20 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
 │   ├── .env.example        # Variables d'environnement du serveur
 │   └── src/
 │       ├── handlers.js     # Câblage des événements Socket.io
-│       ├── game.js         # Déroulement des manches, minuteur, fin de partie
+│       ├── game.js         # Manches, minuteur, scores, élimination
 │       ├── store.js        # Stockage en mémoire des salles + codes uniques
 │       ├── scoring.js      # Haversine + calcul des points (0–5000)
-│       └── locations.js    # Liste de coordonnées (couverture Street View)
+│       └── locations.js    # Lieux (pays/continent, couverture Street View)
 └── client/                 # FRONTEND — Vanilla JS (aucun build)
     ├── index.html
-    ├── config.js           # ⚙️ URL serveur, clé Google Maps, fournisseur 360°
+    ├── config.js           # ⚙️ URL serveur, clé Google Maps, Firebase, etc.
+    ├── data/
+    │   └── countries-50m.json  # Frontières des pays (mode Pays), vendorisé
     ├── css/style.css
     └── js/
         ├── util.js         # Helpers (écrans, formats, couleurs)
         ├── net.js          # Surcouche Socket.io
+        ├── auth.js         # Comptes joueurs (Google / Firebase), optionnel
         ├── panorama.js     # Vue 360° : Google Street View OU Mapillary
         ├── minimap.js      # Cartes Leaflet (supposition + résultats)
         └── app.js          # Contrôleur principal (UI + réseau + chrono)
@@ -76,19 +92,27 @@ le même endroit en même temps**.
 |---|---|
 | `room:create {name}` | Crée une salle, renvoie le code |
 | `room:join {code,name}` | Rejoint une salle existante (lobby) |
-| `room:settings {rounds,roundTime}` | Hôte : règle la partie (lobby) |
-| `game:start` | Hôte : tire 5 lieux et lance la manche 1 |
-| `guess {lat,lng}` | Valide la supposition du joueur |
+| `room:settings {rounds, roundTime, guessType, movement, region, elimination}` | Hôte : règle la partie (lobby) |
+| `game:start` | Hôte : tire les lieux (filtrés par zone) et lance la manche 1 |
+| `guess {lat,lng}` (mode précis) ou `{countryId}` (mode Pays) | Valide la supposition du joueur |
 | `round:next` | Hôte : manche suivante / classement final |
-| `game:restart` | Hôte : rejoue (retour lobby, scores remis à 0) |
+| `game:restart` | Hôte : rejoue (retour lobby, scores/éliminations remis à zéro) |
 
 | Serveur → Client | Contenu |
 |---|---|
 | `room:state` | État complet de la salle (joueurs, réglages, état) |
-| `round:start` | `{round, location:{lat,lng}, endsAt}` |
-| `round:progress` | `{submitted, total}` |
-| `round:result` | Vrai lieu (avec nom), distances, points, scores |
-| `game:over` | Classement final trié |
+| `round:start` | `{round, location:{lat,lng}, endsAt, guessType, movement}` |
+| `round:progress` | `{submitted, total, submittedIds}` |
+| `round:result` | Vrai lieu (nom + pays), distances ou pays correct, points, scores, `newlyEliminated` |
+| `game:over` | Classement final trié (survivant en tête si Battle Royale) |
+
+`guessType`, `movement`, `region` et `elimination` sont les 4 réglages
+combinables du lobby (voir « Fonctionnalités » plus haut) : `guessType`
+détermine la forme de la supposition (`{lat,lng}` ou `{countryId}`),
+`movement` dit au client de verrouiller la vue 360° (`'nmpz'`), `region`
+filtre les lieux tirés côté serveur, et `elimination` active le Battle
+Royale (le serveur élimine le moins précis après chaque manche, sauf si ça
+viderait la partie d'un coup).
 
 ---
 
@@ -182,6 +206,85 @@ payantes (Geocoding, Directions, etc.).
 > pas d'image proche, ajoute/ajuste des coordonnées dans
 > `server/src/locations.js` (privilégie des grandes villes bien couvertes).
 
+> ℹ️ Le mode NMPZ (verrouillage du déplacement) n'est géré que pour Google
+> Street View ; avec Mapillary, la vue reste navigable quel que soit ce réglage.
+
+---
+
+## 👤 Comptes joueurs (connexion Google + stats persos)
+
+Entièrement **optionnel** : tant que tu ne configures rien, `ENABLE_ACCOUNTS`
+reste à `false` dans `client/config.js` et le jeu fonctionne normalement en
+« invité » (pseudo libre, pas de stats sauvegardées). Si tu veux l'activer :
+
+### 1) Créer un projet Firebase
+1. Va sur la [Console Firebase](https://console.firebase.google.com/) →
+   **Ajouter un projet**. Tu peux réutiliser le même projet Google Cloud que
+   ta clé Maps (`gen-lang-client-...`) si tu en as déjà un, ou en créer un
+   nouveau — peu importe.
+2. Désactive Google Analytics si proposé (inutile ici, ça évite une étape).
+
+### 2) Activer la connexion Google (zéro configuration OAuth manuelle)
+1. Dans la console → **Authentication → Sign-in method**.
+2. Active le fournisseur **Google**, choisis un e-mail de support, enregistre.
+   ➡️ Contrairement à une intégration Google OAuth « à la main », Firebase
+   configure tout seul le client OAuth : il n'y a **rien d'autre** à faire
+   dans Google Cloud Console.
+3. Toujours dans **Authentication → Settings → Authorized domains** :
+   `localhost` y est déjà. Ajoute aussi le domaine de ton déploiement (ex.
+   `mon-geoguessr.onrender.com`) une fois en ligne, sinon la connexion
+   échouera silencieusement sur ce domaine.
+
+### 3) Créer la base Firestore (stockage des stats)
+1. Dans la console → **Firestore Database → Créer une base de données**.
+2. Choisis une région proche de toi, démarre en **mode production**.
+3. Onglet **Règles**, remplace tout par ceci puis publie :
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /users/{uid} {
+         allow read: if true;
+         allow write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+   ➡️ Chaque joueur ne peut écrire **que** son propre document de stats ; tout
+   le monde peut les lire (utile pour un futur classement entre amis).
+
+### 4) Récupérer la config et l'activer côté client
+1. Console → ⚙️ **Paramètres du projet → General** → fais défiler jusqu'à
+   « Vos applications » → icône **`</>`** (Web) → enregistre une app.
+2. Copie l'objet `firebaseConfig` affiché, et colle ses valeurs dans
+   `client/config.js` :
+   ```js
+   ENABLE_ACCOUNTS: true,
+   FIREBASE_CONFIG: {
+     apiKey: 'AIza...',
+     authDomain: 'ton-projet.firebaseapp.com',
+     projectId: 'ton-projet',
+     storageBucket: 'ton-projet.appspot.com',
+     messagingSenderId: '...',
+     appId: '1:...:web:...',
+   },
+   ```
+3. Recharge la page : un bouton **« Se connecter avec Google »** apparaît sur
+   l'écran d'accueil.
+
+> 🔒 **Pas de secret à protéger ici non plus** : comme pour la clé Maps, la
+> config Firebase ci-dessus est forcément publique (elle tourne dans le
+> navigateur). La sécurité vient des **règles Firestore** de l'étape 3 — c'est
+> elles qui empêchent un joueur d'écrire dans les stats d'un autre, pas le
+> secret de la config.
+
+> ⚠️ **Honnêteté sur la portée** : les stats sont écrites directement par le
+> navigateur de chaque joueur (pas vérifiées par le serveur de jeu). Pour un
+> groupe d'amis, c'est très bien — un joueur déterminé pourrait théoriquement
+> gonfler ses propres stats, mais il ne peut pas toucher à celles des autres.
+> Si tu veux un classement infalsifiable, il faudrait faire calculer/écrire
+> les stats par le serveur (hors scope de ce clone).
+
 ---
 
 ## ☁️ Déploiement gratuit
@@ -220,17 +323,25 @@ Le serveur sert aussi le front : **un seul service web gratuit** suffit.
 ## ⚙️ Personnalisation
 
 - **Lieux :** édite `server/src/locations.js` (ajoute tes coins préférés !).
+  Chaque entrée a un `countryId` (code ISO 3166-1 numérique, pour le mode
+  Pays) et un `continent` (pour le filtre de zone) — garde-les cohérents si
+  tu ajoutes des lieux.
 - **Difficulté du score :** ajuste `SCALE_KM` dans `server/src/scoring.js`
   (plus petit = plus difficile).
-- **Déplacement libre / mode immobile :** `ALLOW_MOVE` dans `client/config.js`.
-- **Nombre de manches / durée :** réglable dans le lobby par l'hôte.
+- **Déplacement libre / NMPZ :** `ALLOW_MOVE` dans `client/config.js` est un
+  plafond global (mets `false` pour forcer NMPZ partout, même si l'hôte
+  choisit « libre » dans le lobby) ; sinon, c'est un réglage par partie.
+- **Nombre de manches / durée / mode / zone / Battle Royale :** tout est
+  réglable dans le lobby par l'hôte, sans toucher au code.
 
 ---
 
 ## 🧰 Stack & dépendances
 
-- Backend : `express`, `socket.io`, `cors`, `dotenv`.
-- Frontend : Leaflet, Socket.io client, Google Maps JS API **ou** Mapillary JS
-  (chargés via CDN, aucun bundler).
+- Backend : `express`, `socket.io`, `cors`, `dotenv`, `compression` (gzip,
+  utile pour `client/data/countries-50m.json`).
+- Frontend : Leaflet, Socket.io client, `topojson-client` (mode Pays),
+  Google Maps JS API **ou** Mapillary JS, Firebase Auth + Firestore
+  (comptes, optionnel) — tout chargé via CDN, aucun bundler.
 
 Bon jeu ! 🌍🎯

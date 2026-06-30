@@ -6,9 +6,10 @@
  * Événements reçus du client :
  *   room:create   { name }
  *   room:join     { code, name }
- *   room:settings { rounds, roundTime }   (hôte uniquement, dans le lobby)
+ *   room:settings { rounds, roundTime, guessType, movement, region, elimination }
+ *                                          (hôte uniquement, dans le lobby)
  *   game:start                            (hôte uniquement, dans le lobby)
- *   guess         { lat, lng }
+ *   guess         { lat, lng } (mode précis) | { countryId } (mode pays)
  *   round:next                            (hôte uniquement, sur l'écran résultats)
  *   game:restart                          (hôte uniquement, après la partie)
  *   room:leave
@@ -25,6 +26,9 @@ const MIN_ROUNDS = 1;
 const MAX_ROUNDS = 10;
 const MIN_TIME = 30;
 const MAX_TIME = 600;
+const GUESS_TYPES = new Set(['precise', 'country']);
+const MOVEMENTS = new Set(['free', 'nmpz']);
+const REGIONS = new Set(['world', 'europe', 'france']);
 
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
@@ -63,7 +67,7 @@ function registerSocketHandlers(io) {
       game.broadcastState(io, room);
     });
 
-    socket.on('room:settings', ({ rounds, roundTime } = {}) => {
+    socket.on('room:settings', ({ rounds, roundTime, guessType, movement, region, elimination } = {}) => {
       const room = currentRoom(socket);
       if (!room || !isHost(room, socket) || room.state !== 'lobby') return;
 
@@ -73,6 +77,11 @@ function registerSocketHandlers(io) {
       if (Number.isFinite(roundTime)) {
         room.settings.roundTime = clamp(Math.round(roundTime), MIN_TIME, MAX_TIME);
       }
+      if (GUESS_TYPES.has(guessType)) room.settings.guessType = guessType;
+      if (MOVEMENTS.has(movement)) room.settings.movement = movement;
+      if (REGIONS.has(region)) room.settings.region = region;
+      if (typeof elimination === 'boolean') room.settings.elimination = elimination;
+
       game.broadcastState(io, room);
     });
 
@@ -83,10 +92,10 @@ function registerSocketHandlers(io) {
       game.startGame(io, room);
     });
 
-    socket.on('guess', ({ lat, lng } = {}) => {
+    socket.on('guess', (payload = {}) => {
       const room = currentRoom(socket);
       if (!room) return;
-      game.recordGuess(io, room, socket.id, { lat, lng });
+      game.recordGuess(io, room, socket.id, payload);
     });
 
     socket.on('round:next', () => {

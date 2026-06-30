@@ -8,6 +8,11 @@
  * Interface commune :
  *   Panorama.init(containerEl)    -> Promise   (charge le SDK une fois)
  *   Panorama.show({lat, lng})     -> Promise<boolean>  (true si une vue existe)
+ *   Panorama.setMovement(allowed) -> verrouille/déverrouille le déplacement
+ *                                     dans la vue (mode NMPZ). `ALLOW_MOVE`
+ *                                     dans config.js reste un plafond global :
+ *                                     s'il est à false, le mouvement reste
+ *                                     verrouillé même si la salle l'autorise.
  */
 window.Panorama = (function () {
   const cfg = window.APP_CONFIG;
@@ -90,7 +95,13 @@ window.Panorama = (function () {
       return false;
     }
 
-    return { init, show };
+    function setMovement(allowed) {
+      if (!pano) return;
+      const effective = allowed && cfg.ALLOW_MOVE;
+      pano.setOptions({ linksControl: effective, clickToGo: effective });
+    }
+
+    return { init, show, setMovement };
   })();
 
   /* ========================== MAPILLARY ============================ */
@@ -151,9 +162,12 @@ window.Panorama = (function () {
       }
     }
 
-    return { init, show };
+    // Le mode NMPZ n'est pas géré pour Mapillary (le viewer reste navigable).
+    function setMovement() {}
+
+    return { init, show, setMovement };
   })();
 
   const impl = provider === "mapillary" ? Mapillary : Google;
-  return { init: impl.init, show: impl.show, provider };
+  return { init: impl.init, show: impl.show, setMovement: impl.setMovement, provider };
 })();

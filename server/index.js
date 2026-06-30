@@ -6,6 +6,7 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const { Server } = require('socket.io');
 
 const { registerSocketHandlers } = require('./src/handlers');
@@ -20,6 +21,7 @@ const ORIGIN =
 
 const app = express();
 app.use(cors({ origin: ORIGIN }));
+app.use(compression()); // gzip (utile pour client/data/countries-50m.json)
 
 // Sert le client statique : permet un déploiement « tout-en-un » sur UN seul
 // service gratuit (ex: Render). Pour un déploiement séparé, ignore simplement
