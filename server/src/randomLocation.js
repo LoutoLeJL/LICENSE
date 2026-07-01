@@ -27,9 +27,10 @@
 const fs = require('fs');
 const path = require('path');
 const topojson = require('topojson-client');
+const { resolveExternalDir } = require('./paths');
 
 const topology = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '..', '..', 'shared', 'countries-50m.json'), 'utf8')
+  fs.readFileSync(path.join(resolveExternalDir('shared'), 'countries-50m.json'), 'utf8')
 );
 const FEATURES = topojson.feature(topology, topology.objects.countries).features;
 

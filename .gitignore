@@ -1,6 +1,10 @@
 # Dépendances
 node_modules/
 
+# Build de l'exécutable "hôte" (npm run build:exe)
+server/dist/
+server/cloudflared.exe
+
 # Variables d'environnement (ne jamais committer)
 .env
 .env.local

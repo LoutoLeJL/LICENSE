@@ -53,14 +53,20 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
 ├── render.yaml             # Déploiement Render en un clic (optionnel)
 ├── server/                 # BACKEND — Node.js + Socket.io
 │   ├── package.json
-│   ├── index.js            # Express + Socket.io ; sert aussi le client
+│   ├── index.js            # Déploiement classique (Render...), lit .env
+│   ├── host.js              # Lancement "hôte" local + tunnel (voir .exe)
 │   ├── .env.example        # Variables d'environnement du serveur
+│   ├── scripts/
+│   │   └── postbuild.js    # Copie client/+shared/ à côté de l'exe généré
 │   └── src/
+│       ├── createServer.js # App Express+Socket.io, partagée par index/host
 │       ├── handlers.js     # Câblage des événements Socket.io
 │       ├── game.js         # Manches, minuteur, scores, élimination
 │       ├── store.js        # Stockage en mémoire des salles + codes uniques
 │       ├── scoring.js      # Haversine + calcul des points (0–5000)
-│       └── randomLocation.js  # Génère un point aléatoire réel à chaque manche
+│       ├── randomLocation.js  # Génère un point aléatoire réel à chaque manche
+│       ├── cloudflared.js  # Tunnel gratuit pour le lancement "hôte" (.exe)
+│       └── paths.js        # Résolution de chemins (dev vs exe packagé)
 ├── shared/
 │   └── countries-50m.json  # Frontières des pays, utilisées par le client
 │                            # (mode Pays) ET le serveur (tirage aléatoire)
@@ -356,6 +362,59 @@ Le serveur sert aussi le front : **un seul service web gratuit** suffit.
 3. Ajoute les **deux** URLs (front et back) dans les restrictions de la clé
    Google.
 
+### Option C — Héberger depuis ton PC (aucun service en ligne, `.exe`)
+
+Pas envie de dépendre de Render (temps de démarrage à froid, compte à
+créer) ? La personne qui organise la soirée peut faire tourner le serveur
+**directement sur son PC** et l'exposer sur internet via un tunnel gratuit
+[Cloudflare](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)
+(sans compte, sans toucher à sa box/routeur). Les amis n'installent **rien** :
+ils ouvrent juste un lien dans leur navigateur, exactement comme avec Render.
+
+**Le système de code de salle ne change pas** — seule l'adresse à laquelle on
+rejoint le jeu change d'une soirée à l'autre (un lien de tunnel, pas une URL
+fixe).
+
+#### Construire l'exécutable (une seule fois, par la personne qui hébergera)
+
+Sur n'importe quel PC avec un accès internet normal (Windows, Mac ou Linux —
+le résultat sera un `.exe` Windows dans tous les cas) :
+
+```bash
+cd server
+npm install
+npm run build:exe
+```
+
+Ça produit un dossier `server/dist/` contenant :
+- `GeoGuessrHost.exe` — le serveur de jeu packagé (Node.js inclus, rien à
+  installer pour le lancer).
+- `client/` et `shared/` — les fichiers du jeu, à garder à côté de l'exe.
+
+Partage **tout le dossier `dist/`** (zippé) à la personne qui va héberger.
+
+#### Lancer une soirée (l'hôte, à chaque fois)
+
+1. Double-clique `GeoGuessrHost.exe`. Une fenêtre s'ouvre :
+   - Au tout premier lancement, `cloudflared.exe` se télécharge
+     automatiquement à côté (quelques secondes, une seule fois).
+   - Un lien du style `https://mots-aleatoires.trycloudflare.com` s'affiche.
+2. **Partage ce lien** à tes amis (Discord, SMS...) — il change à chaque
+   lancement, donc à refaire à chaque soirée.
+3. Ouvre ce lien toi-même, clique **« Créer une salle »** → tu obtiens un
+   **code à 4 lettres**, exactement comme avant.
+4. Partage ce code à tes amis : ils ouvrent le même lien, cliquent
+   **« Rejoindre »**, et entrent le code.
+5. Laisse la fenêtre ouverte tant que vous jouez ; ferme-la (ou Ctrl+C) pour
+   tout arrêter en fin de soirée.
+
+> ⚠️ **Limites honnêtes** : le tunnel gratuit Cloudflare ("quick tunnel") est
+> pensé pour un usage ponctuel, pas pour un serveur permanent — c'est
+> exactement notre cas d'usage (une soirée entre amis), donc parfait ici.
+> Le PC de l'hôte doit rester allumé et connecté pendant toute la partie.
+> Si tu préfères une adresse fixe qui ne change jamais, repasse à l'option A
+> (Render).
+
 ---
 
 ## ⚙️ Personnalisation
@@ -381,5 +440,8 @@ Le serveur sert aussi le front : **un seul service web gratuit** suffit.
 - Frontend : Leaflet, Socket.io client, `topojson-client` (mode Pays),
   Google Maps JS API **ou** Mapillary JS, Firebase Auth + Firestore
   (comptes, optionnel) — tout chargé via CDN, aucun bundler.
+- Lancement "hôte" (`.exe`, optionnel) : `@yao-pkg/pkg` (devDependency, pour
+  packager le serveur) + [`cloudflared`](https://github.com/cloudflare/cloudflared)
+  (téléchargé automatiquement au premier lancement, pour le tunnel gratuit).
 
 Bon jeu ! 🌍🎯
