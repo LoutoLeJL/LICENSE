@@ -19,8 +19,11 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
 - 🏠 **Lobby** : un joueur crée une salle (code unique à 4 caractères), les
   autres la rejoignent.
 - 🎮 **Parties en 5 manches** (configurable de 1 à 10).
-- 📍 **Même lieu pour tous** : à chaque manche, tous les joueurs apparaissent
-  exactement aux mêmes coordonnées.
+- 📍 **Même lieu pour tous, tiré vraiment au hasard** : à chaque manche, un
+  point aléatoire est généré (pas une liste figée de villes) dans un pays
+  choisi lui aussi au hasard, puis vérifié comme tombant bien sur ses terres
+  — jamais deux fois exactement le même point, contrairement à une liste
+  fixe. Voir « Génération des lieux » plus bas pour le détail.
 - ⏱️ **Chronomètre** par manche (2 min par défaut, configurable), géré par le
   serveur (source de vérité).
 - 🗺️ **Minimap interactive** pour placer son marqueur (clic + glisser).
@@ -57,12 +60,13 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
 │       ├── game.js         # Manches, minuteur, scores, élimination
 │       ├── store.js        # Stockage en mémoire des salles + codes uniques
 │       ├── scoring.js      # Haversine + calcul des points (0–5000)
-│       └── locations.js    # Lieux (pays/continent, couverture Street View)
+│       └── randomLocation.js  # Génère un point aléatoire réel à chaque manche
+├── shared/
+│   └── countries-50m.json  # Frontières des pays, utilisées par le client
+│                            # (mode Pays) ET le serveur (tirage aléatoire)
 └── client/                 # FRONTEND — Vanilla JS (aucun build)
     ├── index.html
     ├── config.js           # ⚙️ URL serveur, clé Google Maps, Firebase, etc.
-    ├── data/
-    │   └── countries-50m.json  # Frontières des pays (mode Pays), vendorisé
     ├── css/style.css
     └── js/
         ├── util.js         # Helpers (écrans, formats, couleurs)
@@ -85,6 +89,40 @@ le même endroit en même temps**.
 > joueur déterminé pourrait donc les lire dans les outils de développement. Pour
 > une partie entre amis, c'est sans conséquence — on masque simplement le nom de
 > rue et le lieu n'est révélé qu'à la fin de la manche.
+
+### 🎲 Génération des lieux (`server/src/randomLocation.js`)
+
+Chaque manche tire un **point réellement aléatoire**, pas une entrée dans une
+liste figée :
+1. Un pays est tiré au hasard parmi une liste d'environ 70 pays réputés bien
+   couverts par Google Street View.
+2. Un point est tiré au hasard dans le rectangle englobant ce pays, puis
+   vérifié comme tombant bien **à l'intérieur de sa frontière réelle**
+   (test point-dans-polygone sur les données de `shared/countries-50m.json`),
+   en ne recommençant que si besoin.
+3. Le nom du pays (en français) est renvoyé pour l'écran de résultats et pour
+   le mode Pays — mais plus de nom de ville/monument précis, puisque le point
+   n'est plus choisi dans une liste de lieux connus.
+
+Deux choix assumés, pour rester honnête sur les limites :
+- **La liste de pays est volontairement limitée** aux pays ayant une
+  couverture Street View réelle (le mode « Monde entier » n'est donc pas
+  *littéralement* n'importe quel point du globe — la Chine, l'Inde ou la
+  majeure partie de l'Asie centrale n'y ont quasiment aucune image Street
+  View — mais un tirage honnête parmi les pays où la partie a une vraie
+  chance de fonctionner). Sans ce filtre, une bonne partie des manches
+  tomberait sur un écran noir faute d'image disponible.
+- **Zones de conflit actif volontairement exclues** (Ukraine, Russie, Israël/
+  Palestine, Syrie, Yémen, Afghanistan...), par précaution.
+- Pour les pays dont le territoire inclut des dépendances très éloignées
+  (ex: la Guyane et La Réunion pour la France), seul le territoire principal
+  (+ ses voisins proches, type Corse) est utilisé : sans ce filtre, le
+  rectangle englobant devient énorme et l'échantillonnage tombe presque
+  toujours à côté, voire dans le mauvais territoire pour le mode « France ».
+
+Tu peux ajouter/retirer des pays dans `COUNTRY_NAMES_FR` (et `EUROPE_IDS` pour
+le filtre Europe) en haut de ce fichier — les codes sont les identifiants ISO
+3166-1 numériques utilisés par `shared/countries-50m.json`.
 
 ### Flux des événements Socket.io
 
@@ -202,9 +240,9 @@ payantes (Geocoding, Directions, etc.).
 3. C'est tout : le code va chercher l'image Mapillary la plus proche du lieu et
    l'affiche.
 
-> ⚠️ La couverture Mapillary est plus variable que Street View. Si un lieu n'a
-> pas d'image proche, ajoute/ajuste des coordonnées dans
-> `server/src/locations.js` (privilégie des grandes villes bien couvertes).
+> ⚠️ La couverture Mapillary est plus variable que Street View. Si tu remarques
+> qu'un pays de la liste tombe trop souvent sur un écran noir avec Mapillary,
+> retire-le de `COUNTRY_NAMES_FR` dans `server/src/randomLocation.js`.
 
 > ℹ️ Le mode NMPZ (verrouillage du déplacement) n'est géré que pour Google
 > Street View ; avec Mapillary, la vue reste navigable quel que soit ce réglage.
@@ -322,10 +360,9 @@ Le serveur sert aussi le front : **un seul service web gratuit** suffit.
 
 ## ⚙️ Personnalisation
 
-- **Lieux :** édite `server/src/locations.js` (ajoute tes coins préférés !).
-  Chaque entrée a un `countryId` (code ISO 3166-1 numérique, pour le mode
-  Pays) et un `continent` (pour le filtre de zone) — garde-les cohérents si
-  tu ajoutes des lieux.
+- **Pays tirés au sort :** édite `COUNTRY_NAMES_FR` (et `EUROPE_IDS` pour le
+  filtre Europe) dans `server/src/randomLocation.js` pour ajouter/retirer des
+  pays de la rotation.
 - **Difficulté du score :** ajuste `SCALE_KM` dans `server/src/scoring.js`
   (plus petit = plus difficile).
 - **Déplacement libre / NMPZ :** `ALLOW_MOVE` dans `client/config.js` est un
@@ -339,7 +376,8 @@ Le serveur sert aussi le front : **un seul service web gratuit** suffit.
 ## 🧰 Stack & dépendances
 
 - Backend : `express`, `socket.io`, `cors`, `dotenv`, `compression` (gzip,
-  utile pour `client/data/countries-50m.json`).
+  utile pour `shared/countries-50m.json`), `topojson-client` (génération des
+  lieux aléatoires).
 - Frontend : Leaflet, Socket.io client, `topojson-client` (mode Pays),
   Google Maps JS API **ou** Mapillary JS, Firebase Auth + Firestore
   (comptes, optionnel) — tout chargé via CDN, aucun bundler.

@@ -21,13 +21,17 @@ const ORIGIN =
 
 const app = express();
 app.use(cors({ origin: ORIGIN }));
-app.use(compression()); // gzip (utile pour client/data/countries-50m.json)
+app.use(compression()); // gzip (utile pour shared/countries-50m.json)
 
 // Sert le client statique : permet un déploiement « tout-en-un » sur UN seul
 // service gratuit (ex: Render). Pour un déploiement séparé, ignore simplement
 // cette partie et héberge /client sur Vercel/Netlify.
 const clientDir = path.join(__dirname, '..', 'client');
 app.use(express.static(clientDir));
+
+// Données géographiques partagées entre client (mode Pays) et serveur
+// (génération de lieux aléatoires) : servies sous /data pour le client.
+app.use('/data', express.static(path.join(__dirname, '..', 'shared')));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

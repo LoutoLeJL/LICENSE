@@ -14,7 +14,7 @@
  *   elimination Battle Royale : élimine le(s) moins précis à chaque manche.
  */
 
-const { pickLocations } = require('./locations');
+const { pickRandomLocations } = require('./randomLocation');
 const { haversineKm, scoreFromDistance, MAX_SCORE } = require('./scoring');
 const { clearRoomTimer, publicPlayers } = require('./store');
 
@@ -34,7 +34,7 @@ function broadcastState(io, room) {
 
 /** Démarre une partie : tire les lieux (filtrés par zone), remet scores/éliminations à zéro. */
 function startGame(io, room) {
-  room.locations = pickLocations(room.settings.rounds, room.settings.region);
+  room.locations = pickRandomLocations(room.settings.rounds, room.settings.region);
   room.currentRound = 0;
   for (const p of Object.values(room.players)) {
     p.score = 0;

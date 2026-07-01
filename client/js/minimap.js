@@ -4,8 +4,13 @@
  *  - ResultMap  : carte des résultats (vrai lieu/pays + suppositions + liens).
  */
 window.Maps = (function () {
-  const OSM_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-  const OSM_ATTR = "© OpenStreetMap";
+  // Tuiles CARTO Voyager (gratuit, sans clé) plutôt que le style OSM par
+  // défaut : les noms de lieux restent en écriture latine partout dans le
+  // monde (le rendu OSM standard affiche souvent les noms dans la langue/
+  // écriture locale, ce qui donnait par exemple "Україна" pour l'Ukraine).
+  const OSM_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  const OSM_ATTR =
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
   const COUNTRY_DATA_URL = "data/countries-50m.json";
   const COUNTRY_DEFAULT_STYLE = { color: "#1b232d", weight: 1, fillColor: "#4361ee", fillOpacity: 0.22 };
@@ -41,7 +46,7 @@ window.Maps = (function () {
         worldCopyJump: true,
         zoomControl: true,
       });
-      L.tileLayer(OSM_URL, { attribution: OSM_ATTR, maxZoom: 19 }).addTo(map);
+      L.tileLayer(OSM_URL, { attribution: OSM_ATTR, maxZoom: 20, subdomains: "abcd" }).addTo(map);
 
       map.on("click", (e) => {
         if (mode !== "precise") return;
@@ -153,7 +158,7 @@ window.Maps = (function () {
     function ensure(containerId) {
       if (map) return;
       map = L.map(containerId, { center: [20, 0], zoom: 2, worldCopyJump: true });
-      L.tileLayer(OSM_URL, { attribution: OSM_ATTR, maxZoom: 19 }).addTo(map);
+      L.tileLayer(OSM_URL, { attribution: OSM_ATTR, maxZoom: 20, subdomains: "abcd" }).addTo(map);
       layer = L.layerGroup().addTo(map);
     }
 
