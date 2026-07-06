@@ -4,7 +4,7 @@
  * Câblage des événements Socket.io <-> logique de jeu.
  *
  * Événements reçus du client :
- *   room:create   { name }
+ *   room:create   { name, lobbyName?, isPublic? }
  *   room:join     { code, name }
  *   room:settings { rounds, roundTime, guessType, movement, region, elimination }
  *                                          (hôte uniquement, dans le lobby)
@@ -21,6 +21,7 @@
 
 const store = require('./store');
 const game = require('./game');
+const directory = require('./lobbyDirectory');
 
 const MIN_ROUNDS = 1;
 const MAX_ROUNDS = 10;
@@ -35,12 +36,19 @@ function registerSocketHandlers(io) {
     // La room courante du socket (au plus une à la fois).
     socket.data.roomCode = null;
 
-    socket.on('room:create', ({ name } = {}) => {
+    socket.on('room:create', ({ name, lobbyName, isPublic } = {}) => {
       leaveCurrentRoom(io, socket); // au cas où
 
-      const room = store.createRoom(socket.id, name);
+      const room = store.createRoom(socket.id, name, { lobbyName, isPublic });
       socket.join(room.code);
       socket.data.roomCode = room.code;
+
+      // Inscription dans l'annuaire des lobbys (si configuré) + heartbeat.
+      directory.upsertLobby(room, { force: true });
+      room.directoryTimer = setInterval(
+        () => directory.upsertLobby(room, { force: true }),
+        directory.HEARTBEAT_MS
+      );
 
       socket.emit('room:joined', { code: room.code, youId: socket.id });
       game.broadcastState(io, room);
@@ -153,7 +161,8 @@ function leaveCurrentRoom(io, socket) {
 
   const remaining = Object.keys(room.players);
   if (remaining.length === 0) {
-    store.deleteRoom(code);
+    store.deleteRoom(code); // stoppe aussi le heartbeat de l'annuaire
+    directory.removeLobby(code);
     return;
   }
 

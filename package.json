@@ -2,13 +2,51 @@
   "name": "geoguessr-clone",
   "version": "1.0.0",
   "private": true,
-  "description": "Clone web multijoueur de GeoGuessr (Leaflet/OSM + Street View + Socket.io). Pensé pour un hébergement 100 % gratuit.",
+  "description": "Clone web multijoueur de GeoGuessr (Leaflet/OSM + Street View + Socket.io) + application de bureau Electron où chacun peut héberger ses parties.",
+  "main": "desktop/main.js",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "host": "node server/host.js",
+    "app": "electron .",
+    "dist": "electron-builder --win",
     "postinstall": "cd server && npm install"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.geoguessrclone.app",
+    "productName": "GeoGuessr Clone",
+    "files": [
+      "desktop/**",
+      "server/**",
+      "!server/dist/**",
+      "!server/cloudflared.exe",
+      "!server/.env"
+    ],
+    "extraResources": [
+      { "from": "client", "to": "client" },
+      { "from": "shared", "to": "shared" }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "artifactName": "GeoGuessrClone-Setup-${version}.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "LoutoLeJL",
+      "repo": "LICENSE"
+    }
   }
 }

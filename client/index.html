@@ -50,8 +50,21 @@
           <input id="input-name" type="text" maxlength="20" placeholder="Ex: Alex" />
         </label>
 
+        <!-- Options d'hébergement (visibles quand l'annuaire est configuré) -->
+        <div id="create-options" class="create-options hidden">
+          <label class="field">
+            <span>Nom du lobby</span>
+            <input id="input-lobby-name" type="text" maxlength="30" placeholder="Ex: Soirée du vendredi" />
+          </label>
+          <label class="field-inline checkbox-inline">
+            <span>🌐 Lobby public (visible par tous)</span>
+            <input id="input-lobby-public" type="checkbox" />
+          </label>
+        </div>
+
         <div class="actions">
           <button id="btn-create" class="primary">Créer une salle</button>
+          <p id="hosting-status" class="hint hidden"></p>
         </div>
 
         <div class="divider"><span>ou</span></div>
@@ -65,6 +78,20 @@
             class="code-input"
           />
           <button id="btn-join" class="secondary">Rejoindre</button>
+        </div>
+
+        <!-- Liste des lobbys publics (visible quand l'annuaire est configuré) -->
+        <div id="lobby-browser" class="lobby-browser hidden">
+          <div class="lobby-browser-head">
+            <h3>Lobbys publics</h3>
+            <button id="btn-lobbies-refresh" class="link-btn" title="Rafraîchir">🔄</button>
+          </div>
+          <input
+            id="input-lobby-search"
+            type="text"
+            placeholder="Rechercher un lobby par nom…"
+          />
+          <ul id="lobby-list" class="lobby-list"></ul>
         </div>
 
         <p id="home-error" class="error-msg"></p>
@@ -220,6 +247,7 @@
     <!-- Modules de l'application -->
     <script src="js/util.js"></script>
     <script src="js/net.js"></script>
+    <script src="js/directory.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/panorama.js"></script>
     <script src="js/minimap.js"></script>

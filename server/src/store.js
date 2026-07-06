@@ -23,6 +23,9 @@
  *   roundGuesses: { [socketId]: {lat,lng} | {countryId} },
  *   roundEndsAt: <timestamp ms> | null,
  *   timer: <NodeJS.Timeout> | null,
+ *   lobbyName: string,        // nom affiché dans l'annuaire des lobbys
+ *   isPublic: boolean,        // visible dans la liste publique ?
+ *   directoryTimer: <NodeJS.Timeout> | null, // heartbeat vers l'annuaire
  * }
  */
 
@@ -51,7 +54,7 @@ function generateCode() {
   return code;
 }
 
-function createRoom(hostId, hostName) {
+function createRoom(hostId, hostName, { lobbyName, isPublic } = {}) {
   const code = generateCode();
   const room = {
     code,
@@ -65,10 +68,18 @@ function createRoom(hostId, hostName) {
     roundGuesses: {},
     roundEndsAt: null,
     timer: null,
+    // Annuaire des lobbys (voir lobbyDirectory.js)
+    lobbyName: sanitizeLobbyName(lobbyName),
+    isPublic: !!isPublic,
+    directoryTimer: null,
   };
   room.players[hostId] = makePlayer(hostId, hostName);
   rooms.set(code, room);
   return room;
+}
+
+function sanitizeLobbyName(name) {
+  return String(name || '').trim().slice(0, 30);
 }
 
 function makePlayer(id, name) {
@@ -86,7 +97,10 @@ function getRoom(code) {
 
 function deleteRoom(code) {
   const room = rooms.get(code);
-  if (room && room.timer) clearTimeout(room.timer);
+  if (room) {
+    if (room.timer) clearTimeout(room.timer);
+    if (room.directoryTimer) clearInterval(room.directoryTimer);
+  }
   rooms.delete(code);
 }
 

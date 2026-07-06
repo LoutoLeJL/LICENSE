@@ -5,6 +5,9 @@ node_modules/
 server/dist/
 server/cloudflared.exe
 
+# Build de l'application de bureau (npm run dist)
+dist/
+
 # Variables d'environnement (ne jamais committer)
 .env
 .env.local

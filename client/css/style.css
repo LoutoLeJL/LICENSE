@@ -263,6 +263,85 @@ button:disabled {
   font-weight: 700;
 }
 
+/* -------------------- Hébergement & lobbys publics ------------------ */
+.create-options {
+  background: var(--panel-2);
+  border-radius: 10px;
+  padding: 4px 14px 10px;
+  margin: 12px 0;
+}
+
+.lobby-browser {
+  margin-top: 18px;
+}
+.lobby-browser-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.lobby-browser-head h3 {
+  margin: 0;
+}
+.lobby-browser input {
+  margin: 10px 0;
+}
+.lobby-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lobby-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.lobby-list li:hover {
+  border-color: var(--accent);
+}
+.lobby-list .lobby-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lobby-list .lobby-meta {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.lobby-list .lobby-state {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(6, 214, 160, 0.15);
+  color: var(--good);
+  flex: none;
+}
+.lobby-list .lobby-state.playing {
+  background: rgba(239, 71, 111, 0.15);
+  color: var(--danger);
+}
+.lobby-list .empty {
+  cursor: default;
+  color: var(--muted);
+  justify-content: center;
+}
+.lobby-list .empty:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .divider {
   text-align: center;
   margin: 18px 0;

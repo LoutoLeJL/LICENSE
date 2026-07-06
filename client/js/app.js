@@ -13,6 +13,7 @@
     isHost: false,
     players: [],
     settings: null,
+    lobbies: [],
     round: 0,
     totalRounds: 5,
     submitted: false,
@@ -79,23 +80,28 @@
    *  ÉVÉNEMENTS UI
    * ==================================================================== */
   function registerUiEvents() {
-    $("btn-create").addEventListener("click", () => {
-      const name = $("input-name").value.trim();
-      if (!name) return ($("home-error").textContent = "Choisis un pseudo.");
-      Net.emit("room:create", { name });
-    });
+    $("btn-create").addEventListener("click", createRoom);
 
     $("btn-join").addEventListener("click", () => {
       const name = $("input-name").value.trim();
       const code = $("input-code").value.trim().toUpperCase();
       if (!name) return ($("home-error").textContent = "Choisis un pseudo.");
       if (!code) return ($("home-error").textContent = "Entre un code de salle.");
-      Net.emit("room:join", { code, name });
+      joinByCode(code, name);
     });
 
     $("input-code").addEventListener("input", (e) => {
       e.target.value = e.target.value.toUpperCase();
     });
+
+    // Annuaire des lobbys (visible seulement si Firebase est configuré).
+    if (Directory.isEnabled()) {
+      $("create-options").classList.remove("hidden");
+      $("lobby-browser").classList.remove("hidden");
+      $("btn-lobbies-refresh").addEventListener("click", refreshLobbies);
+      $("input-lobby-search").addEventListener("input", renderLobbyList);
+      refreshLobbies();
+    }
 
     $("btn-copy").addEventListener("click", () => {
       navigator.clipboard?.writeText(state.roomCode || "");
@@ -122,6 +128,99 @@
 
     $("btn-next").addEventListener("click", () => Net.emit("round:next"));
     $("btn-again").addEventListener("click", () => Net.emit("game:restart"));
+  }
+
+  /* ====================================================================
+   *  CRÉER / REJOINDRE (via l'annuaire des lobbys si configuré)
+   * ==================================================================== */
+  async function createRoom() {
+    const name = $("input-name").value.trim();
+    if (!name) return ($("home-error").textContent = "Choisis un pseudo.");
+    $("home-error").textContent = "";
+
+    // App de bureau : démarre le tunnel AVANT de créer la salle, pour que le
+    // serveur local connaisse son URL publique au moment d'inscrire le lobby.
+    if (window.desktop && window.desktop.ensureTunnel) {
+      const status = $("hosting-status");
+      status.textContent = "Préparation du lien de partage… (première fois : ~30 s)";
+      status.classList.remove("hidden");
+      try {
+        await window.desktop.ensureTunnel();
+        status.classList.add("hidden");
+      } catch (e) {
+        console.error("Tunnel :", e);
+        status.textContent = "⚠️ Tunnel indisponible — partie jouable en local seulement.";
+      }
+    }
+
+    Net.connect(); // on héberge toujours sur le serveur par défaut (le sien)
+    Net.emit("room:create", {
+      name,
+      lobbyName: $("input-lobby-name").value.trim(),
+      isPublic: $("input-lobby-public").checked,
+    });
+  }
+
+  /** Rejoint par code : résout d'abord l'hôte via l'annuaire (le lobby peut
+   *  tourner sur le PC d'un autre joueur), sinon serveur par défaut. */
+  async function joinByCode(code, name, knownUrl) {
+    $("home-error").textContent = "";
+    let url = knownUrl;
+    if (!url && Directory.isEnabled()) {
+      try {
+        const lobby = await Directory.lookupCode(code);
+        if (lobby && lobby.url) url = lobby.url;
+      } catch (e) {
+        console.warn("Annuaire :", e);
+      }
+    }
+    Net.connect(url); // undefined => serveur par défaut (même origine)
+    Net.emit("room:join", { code, name });
+  }
+
+  async function refreshLobbies() {
+    $("btn-lobbies-refresh").textContent = "⏳";
+    try {
+      state.lobbies = await Directory.listPublicLobbies();
+    } catch (e) {
+      console.warn("Annuaire :", e);
+      state.lobbies = [];
+    }
+    $("btn-lobbies-refresh").textContent = "🔄";
+    renderLobbyList();
+  }
+
+  function renderLobbyList() {
+    const q = $("input-lobby-search").value.trim().toLowerCase();
+    const list = state.lobbies.filter(
+      (l) => !q || (l.name || "").toLowerCase().includes(q)
+    );
+    const el = $("lobby-list");
+    if (!list.length) {
+      el.innerHTML = `<li class="empty">${
+        q ? "Aucun lobby ne correspond à cette recherche." : "Aucun lobby public pour l'instant."
+      }</li>`;
+      return;
+    }
+    el.innerHTML = list
+      .map(
+        (l) =>
+          `<li data-code="${escapeHtml(l.code)}" data-url="${escapeHtml(l.url || "")}">` +
+          `<span class="lobby-state${l.state !== "lobby" ? " playing" : ""}">${
+            l.state === "lobby" ? "En attente" : "En partie"
+          }</span>` +
+          `<span class="lobby-name">${escapeHtml(l.name || l.code)}</span>` +
+          `<span class="lobby-meta">${escapeHtml(l.hostName || "")} · ${l.players || 0} 👤</span>` +
+          `</li>`
+      )
+      .join("");
+    el.querySelectorAll("li[data-code]").forEach((li) => {
+      li.addEventListener("click", () => {
+        const name = $("input-name").value.trim();
+        if (!name) return ($("home-error").textContent = "Choisis un pseudo avant de rejoindre.");
+        joinByCode(li.dataset.code, name, li.dataset.url || undefined);
+      });
+    });
   }
 
   function emitSettings() {
@@ -207,6 +306,7 @@
     stopTimer();
     state.roomCode = null;
     showScreen("screen-home");
+    if (Directory.isEnabled()) refreshLobbies();
   }
 
   /* ====================================================================

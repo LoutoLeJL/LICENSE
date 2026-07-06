@@ -15,6 +15,7 @@
 
 const { createServer } = require('./src/createServer');
 const { ensureCloudflared, startTunnel } = require('./src/cloudflared');
+const directory = require('./src/lobbyDirectory');
 
 const LOCAL_PORT = Number(process.env.PORT) || 3000;
 
@@ -58,6 +59,10 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+
+  // Les salles créées ici s'inscriront dans l'annuaire des lobbys avec
+  // cette URL publique (si Firebase est configuré dans client/config.js).
+  directory.setPublicUrl(tunnel.url);
 
   banner([
     "🌍 GeoGuessr Clone — tu es l'hôte !",

@@ -17,9 +17,12 @@
 const { pickRandomLocations } = require('./randomLocation');
 const { haversineKm, scoreFromDistance, MAX_SCORE } = require('./scoring');
 const { clearRoomTimer, publicPlayers } = require('./store');
+const directory = require('./lobbyDirectory');
 
 /** Envoie l'état complet de la room à tous ses membres (resync UI). */
 function broadcastState(io, room) {
+  // Reflète joueurs/état dans l'annuaire des lobbys (throttlé en interne).
+  directory.upsertLobby(room);
   io.to(room.code).emit('room:state', {
     code: room.code,
     hostId: room.hostId,

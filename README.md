@@ -42,6 +42,12 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
 - 👤 **Comptes joueurs (optionnel)** : connexion avec Google, profil + stats
   persos (parties jouées, meilleur score, précision moyenne) sauvegardées
   entre les sessions. Le jeu reste 100 % jouable sans compte.
+- 🖥️ **Application de bureau (Electron)** : chacun installe l'app, chacun
+  peut héberger ses propres parties (serveur embarqué + tunnel automatique),
+  avec **mises à jour automatiques** via GitHub Releases.
+- 📒 **Lobbys publics ou privés** : un annuaire central (Firestore, gratuit)
+  liste les lobbys publics — visibles et **recherchables par nom** dans
+  l'app — tandis que les privés restent joignables uniquement par code.
 
 ---
 
@@ -65,8 +71,13 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
 │       ├── store.js        # Stockage en mémoire des salles + codes uniques
 │       ├── scoring.js      # Haversine + calcul des points (0–5000)
 │       ├── randomLocation.js  # Génère un point aléatoire réel à chaque manche
-│       ├── cloudflared.js  # Tunnel gratuit pour le lancement "hôte" (.exe)
-│       └── paths.js        # Résolution de chemins (dev vs exe packagé)
+│       ├── cloudflared.js  # Tunnel gratuit (hébergement depuis un PC)
+│       ├── lobbyDirectory.js  # Annuaire central des lobbys (Firestore REST)
+│       ├── clientConfig.js # Lit client/config.js côté serveur (1 seule config)
+│       └── paths.js        # Résolution de chemins (dev / pkg / Electron)
+├── desktop/                # APPLICATION DE BUREAU — Electron
+│   ├── main.js             # Fenêtre + serveur embarqué + tunnel + màj auto
+│   └── preload.js          # Pont sécurisé (window.desktop)
 ├── shared/
 │   └── countries-50m.json  # Frontières des pays, utilisées par le client
 │                            # (mode Pays) ET le serveur (tirage aléatoire)
@@ -76,7 +87,8 @@ Un clone web **multijoueur** de GeoGuessr, pensé pour un petit groupe d'amis et
     ├── css/style.css
     └── js/
         ├── util.js         # Helpers (écrans, formats, couleurs)
-        ├── net.js          # Surcouche Socket.io
+        ├── net.js          # Socket.io reconnectable (join multi-hôtes)
+        ├── directory.js    # Annuaire des lobbys côté client (liste/lookup)
         ├── auth.js         # Comptes joueurs (Google / Firebase), optionnel
         ├── panorama.js     # Vue 360° : Google Street View OU Mapillary
         ├── minimap.js      # Cartes Leaflet (supposition + résultats)
@@ -287,15 +299,29 @@ reste à `false` dans `client/config.js` et le jeu fonctionne normalement en
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
+       // Stats des joueurs : chacun n'écrit que son propre document.
        match /users/{uid} {
          allow read: if true;
          allow write: if request.auth != null && request.auth.uid == uid;
+       }
+       // Annuaire des lobbys : les hôtes (non authentifiés) doivent pouvoir
+       // inscrire/mettre à jour/retirer leur salle. Ouvert en écriture — voir
+       // la note honnête ci-dessous.
+       match /lobbies/{code} {
+         allow read, write: if true;
        }
      }
    }
    ```
    ➡️ Chaque joueur ne peut écrire **que** son propre document de stats ; tout
    le monde peut les lire (utile pour un futur classement entre amis).
+
+   > ⚠️ **Note honnête sur `lobbies`** : la collection est ouverte en écriture,
+   > car le serveur d'un hôte n'est pas authentifié. Quelqu'un qui récupère ta
+   > config Firebase (publique par nature) pourrait donc créer de fausses
+   > entrées de lobby. Pour un groupe d'amis c'est un non-problème — au pire
+   > une entrée fantôme disparaît d'elle-même au bout de 90 s sans heartbeat —
+   > mais ce n'est pas fait pour un jeu ouvert au grand public.
 
 ### 4) Récupérer la config et l'activer côté client
 1. Console → ⚙️ **Paramètres du projet → General** → fais défiler jusqu'à
@@ -328,6 +354,74 @@ reste à `false` dans `client/config.js` et le jeu fonctionne normalement en
 > gonfler ses propres stats, mais il ne peut pas toucher à celles des autres.
 > Si tu veux un classement infalsifiable, il faudrait faire calculer/écrire
 > les stats par le serveur (hors scope de ce clone).
+
+---
+
+## 🖥️ Application de bureau (chacun peut héberger)
+
+La façon la plus complète de jouer : une **application Windows installable**
+qui contient tout — le jeu, un serveur embarqué et le tunnel. Chaque personne
+qui l'installe peut **héberger** ses propres parties (pas seulement les
+rejoindre), voir la **liste des lobbys publics**, les **rechercher par nom**,
+et l'app se **met à jour automatiquement** via GitHub Releases.
+
+### Ce qu'il faut pour que tout fonctionne
+
+| Fonction | Prérequis |
+|---|---|
+| Jouer, héberger, rejoindre par code local | Rien — ça marche direct |
+| Lobbys publics + rejoindre par code un lobby hébergé ailleurs | Firebase configuré dans `client/config.js` (voir section Comptes, étapes 1, 3 et 4 — la connexion Google est facultative, seul Firestore sert d'annuaire) |
+| Street View via le lien du tunnel | Le joker `https://*.trycloudflare.com/*` dans les restrictions de la clé Maps |
+| Mises à jour automatiques | Publier les builds en GitHub Release (voir plus bas) |
+
+### Construire l'installateur (toi, une fois par version)
+
+Sur ton PC Windows, à la racine du projet :
+
+```cmd
+npm install
+npm run dist
+```
+
+Ça produit `dist\GeoGuessrClone-Setup-1.0.0.exe` : un installateur classique
+que tes amis téléchargent et double-cliquent. C'est CE fichier que tu
+distribues.
+
+> En dev, `npm run app` lance l'app sans la packager.
+
+### Publier une mise à jour
+
+1. Change le numéro de `version` dans `package.json` (racine), ex. `1.0.1`.
+2. `npm run dist` → nouveaux fichiers dans `dist\`.
+3. Sur GitHub → **Releases → Draft a new release** → tag `v1.0.1` → uploade
+   **tous** les fichiers produits (`GeoGuessrClone-Setup-1.0.1.exe`,
+   `latest.yml`, et le `.blockmap`) → publie.
+4. C'est tout : au prochain lancement, les apps installées détectent la
+   release, téléchargent la mise à jour en arrière-plan et l'appliquent au
+   redémarrage. (Le dépôt doit être **public** pour que la détection
+   fonctionne sans configuration supplémentaire.)
+
+### Comment marchent les lobbys
+
+- **Héberger** : entre ton pseudo, donne un nom à ton lobby, coche
+  « Lobby public » si tu veux qu'il soit visible par tout le monde, puis
+  « Créer une salle ». L'app démarre le tunnel (quelques secondes, ~30 s la
+  toute première fois le temps de télécharger cloudflared) et inscrit le
+  lobby dans l'annuaire.
+- **Rejoindre un lobby public** : il apparaît dans la liste de l'écran
+  d'accueil (nom, hôte, nombre de joueurs, en attente/en partie). Clique
+  dessus, c'est tout. La barre de recherche filtre par nom.
+- **Rejoindre un lobby privé** : le code à 4 lettres suffit, comme toujours —
+  l'annuaire résout silencieusement le code vers le PC de l'hôte, même si le
+  lobby n'est pas listé publiquement.
+- **Fin de partie** : quand l'hôte ferme son app (ou que la salle se vide),
+  le lobby disparaît de l'annuaire (au plus tard après 90 s).
+
+> ⚠️ **Limites honnêtes** : le PC de l'hôte doit rester allumé pendant la
+> partie ; le lien du tunnel change à chaque session (transparent pour les
+> joueurs, qui passent par l'annuaire) ; et l'annuaire nécessite un projet
+> Firebase — sans lui, l'app fonctionne mais sans liste de lobbys ni join
+> multi-hôtes par code.
 
 ---
 
@@ -456,8 +550,11 @@ lien du tunnel.
 - Frontend : Leaflet, Socket.io client, `topojson-client` (mode Pays),
   Google Maps JS API **ou** Mapillary JS, Firebase Auth + Firestore
   (comptes, optionnel) — tout chargé via CDN, aucun bundler.
-- Lancement "hôte" (`.exe`, optionnel) : `@yao-pkg/pkg` (devDependency, pour
-  packager le serveur) + [`cloudflared`](https://github.com/cloudflare/cloudflared)
-  (téléchargé automatiquement au premier lancement, pour le tunnel gratuit).
+- Application de bureau : Electron + `electron-builder` (installateur
+  Windows) + `electron-updater` (mises à jour via GitHub Releases).
+- Annuaire des lobbys : Firestore en simple REST (aucun SDK côté serveur).
+- Hébergement depuis un PC : [`cloudflared`](https://github.com/cloudflare/cloudflared)
+  (téléchargé automatiquement au premier hébergement, tunnel gratuit) ;
+  `@yao-pkg/pkg` reste dispo pour le `.exe` console (`npm run build:exe`).
 
 Bon jeu ! 🌍🎯

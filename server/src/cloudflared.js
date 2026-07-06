@@ -22,11 +22,16 @@ const CLOUDFLARED_DOWNLOAD_URL =
 const TUNNEL_URL_RE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
 
 /**
- * Chemin où chercher/stocker cloudflared.exe : à côté de l'exécutable
- * packagé (pkg définit `process.pkg`), ou à côté du dossier server/ en dev.
+ * Chemin où chercher/stocker cloudflared.exe :
+ *   1. GEO_CLOUDFLARED_DIR : défini par l'app Electron (dossier userData,
+ *      accessible en écriture même quand l'app est installée).
+ *   2. À côté de l'exécutable packagé (pkg définit `process.pkg`).
+ *   3. À côté du dossier server/ en dev.
  */
 function cloudflaredPath() {
-  const baseDir = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '..');
+  const baseDir =
+    process.env.GEO_CLOUDFLARED_DIR ||
+    (process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '..'));
   return path.join(baseDir, 'cloudflared.exe');
 }
 
