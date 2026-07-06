@@ -393,6 +393,22 @@ npm run build:exe
 
 Partage **tout le dossier `dist/`** (zippé) à la personne qui va héberger.
 
+#### Avant la première soirée : autoriser les liens de tunnel dans ta clé Google
+
+Le lien du tunnel change à chaque lancement (`https://mots-aleatoires.trycloudflare.com`),
+donc impossible de l'ajouter à l'avance aux restrictions de ta clé Maps. Ajoute
+plutôt le **joker** suivant dans les restrictions de sites web de la clé
+(Google Cloud Console → Credentials → ta clé → Application restrictions →
+Websites) :
+
+```
+https://*.trycloudflare.com/*
+```
+
+Sans ça, Street View fonctionnera en `localhost` chez l'hôte mais affichera
+une erreur (`RefererNotAllowedMapError`) pour les amis qui passent par le
+lien du tunnel.
+
 #### Lancer une soirée (l'hôte, à chaque fois)
 
 1. Double-clique `GeoGuessrHost.exe`. Une fenêtre s'ouvre :
